@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: district-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: 3306
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        value: movie_booking
+      - key: FRONTEND_URL
+        sync: false
+      - key: PORT
+        value: 3000
