@@ -3,7 +3,22 @@ import cors from "cors";
 import { pool } from "./db.js";
 
 const app = express();
-app.use(cors());
+const allowedOrigins = [
+  "http://localhost:3001",
+  "http://localhost:5173",
+  process.env.FRONTEND_URL,
+].filter(Boolean);
+
+app.use(
+  cors({
+    origin: (origin, cb) => {
+      // Allow no-origin requests (curl, Postman) and listed origins
+      if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+      cb(new Error("CORS: origin not allowed"));
+    },
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 function toInt(value) {

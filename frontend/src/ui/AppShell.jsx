@@ -1,49 +1,81 @@
 import { motion } from "framer-motion";
-import { Link, useLocation } from "react-router-dom";
-import { useBooking } from "../state/booking";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 export function AppShell({ children }) {
   const location = useLocation();
-  const { userId, setUserId } = useBooking();
+  const navigate = useNavigate();
 
-  const users = [
-    { id: 1, name: "Aarav" },
-    { id: 2, name: "Isha" },
-    { id: 3, name: "Kabir" },
-    { id: 4, name: "Ananya" }
+  const steps = [
+    { path: "/", label: "Movies" },
+    { path: "/shows", label: "Showtimes" },
+    { path: "/seats", label: "Seats" },
+    { path: "/booking", label: "Review" },
+    { path: "/payment", label: "Payment" },
   ];
+
+  const activeIdx = steps.findIndex((s) =>
+    s.path === "/"
+      ? location.pathname === "/"
+      : location.pathname.startsWith(s.path)
+  );
 
   return (
     <div className="min-h-screen bg-ink-950">
-      <div className="pointer-events-none fixed inset-0 bg-grid opacity-[0.25]" />
-      <div className="pointer-events-none fixed inset-0 bg-gradient-to-b from-indigo-500/10 via-transparent to-transparent" />
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(99,102,241,0.12),transparent)]" />
 
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-ink-950/75 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <Link to="/" className="group inline-flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-indigo-400 shadow-[0_0_20px_rgba(99,102,241,0.75)]" />
-            <span className="text-sm font-semibold tracking-wide text-zinc-100">
-              District Movies
+      <header className="sticky top-0 z-40 border-b border-white/[0.07] bg-ink-950/80 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+          {/* Logo */}
+          <Link to="/" className="group inline-flex items-center gap-2.5">
+            <div className="relative flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500/20 ring-1 ring-indigo-400/30">
+              <span className="text-sm">🎬</span>
+            </div>
+            <span className="text-sm font-bold tracking-tight text-zinc-100">
+              District
             </span>
-            <span className="text-xs text-zinc-400 transition group-hover:text-zinc-200">
-              book tickets
-            </span>
+            <span className="hidden text-xs text-zinc-500 sm:inline">Movies</span>
           </Link>
 
-          <nav className="hidden items-center gap-3 sm:flex">
-            <div className="text-xs text-zinc-400">Booking as</div>
-            <select
-              value={userId}
-              onChange={(e) => setUserId(Number(e.target.value))}
-              className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-zinc-100 outline-none focus:border-indigo-400/40"
-            >
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name} (#{u.id})
-                </option>
-              ))}
-            </select>
+          {/* Step breadcrumb — desktop */}
+          <nav className="hidden items-center gap-1 sm:flex">
+            {steps.map((s, i) => {
+              const done = i < activeIdx;
+              const active = i === activeIdx;
+              return (
+                <div key={s.path} className="flex items-center gap-1">
+                  {i > 0 && (
+                    <span className="text-zinc-700">›</span>
+                  )}
+                  <span
+                    className={`text-xs font-medium transition ${
+                      active
+                        ? "text-indigo-300"
+                        : done
+                        ? "text-zinc-400"
+                        : "text-zinc-600"
+                    }`}
+                  >
+                    {s.label}
+                  </span>
+                </div>
+              );
+            })}
           </nav>
+
+          {/* Mobile: current step */}
+          <div className="flex items-center gap-2 sm:hidden">
+            <span className="text-xs text-zinc-400">
+              {activeIdx >= 0 ? steps[activeIdx].label : ""}
+            </span>
+            {location.pathname !== "/" && (
+              <button
+                onClick={() => navigate(-1)}
+                className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-xs text-zinc-300"
+              >
+                ← Back
+              </button>
+            )}
+          </div>
         </div>
       </header>
 

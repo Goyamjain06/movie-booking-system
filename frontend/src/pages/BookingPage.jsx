@@ -6,6 +6,21 @@ import { Card } from "../ui/Card";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 
+function fmtTime(t) {
+  if (!t) return "";
+  const [h, m] = t.split(":");
+  const hour = Number(h);
+  const ampm = hour >= 12 ? "PM" : "AM";
+  const h12 = hour % 12 || 12;
+  return `${h12}:${m} ${ampm}`;
+}
+
+function fmtDate(d) {
+  if (!d) return "";
+  const date = new Date(d + "T00:00:00");
+  return date.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
+}
+
 const PRICE_BY_TYPE = {
   Regular: 280,
   Premium: 420,
@@ -71,9 +86,8 @@ export function BookingPage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2 space-y-4">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge tone="info">Show #{show.show_id}</Badge>
-            <Badge>{show.show_date}</Badge>
-            <Badge>{String(show.start_time).slice(0, 5)}</Badge>
+            <Badge tone="info">{fmtDate(show.show_date)}</Badge>
+            <Badge tone="neutral">🕐 {fmtTime(show.start_time)}</Badge>
             <Badge>{show.screen_name}</Badge>
             <Badge>{show.theatre_name}</Badge>
           </div>
@@ -93,11 +107,6 @@ export function BookingPage() {
         <Card className="space-y-4">
           <div className="text-sm font-semibold">Total</div>
           <div className="text-3xl font-semibold tracking-tight">₹{total}</div>
-
-          <div className="space-y-1 text-xs text-zinc-400">
-            <div>Booking as user ID: <span className="text-zinc-100 font-semibold">{userId}</span></div>
-            <div>Use the top-right selector to switch user (Aarav, Isha, Kabir, Ananya).</div>
-          </div>
 
           <Button onClick={confirm} disabled={loading} className="w-full">
             {loading ? "Creating..." : "Confirm Booking"}

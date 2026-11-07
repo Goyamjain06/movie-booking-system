@@ -8,9 +8,18 @@ import { Button } from "../ui/Button";
 import { useBooking } from "../state/booking";
 
 function fmtTime(t) {
-  // expects "HH:MM:SS"
   if (!t) return "";
-  return t.slice(0, 5);
+  const [h, m] = t.split(":");
+  const hour = Number(h);
+  const ampm = hour >= 12 ? "PM" : "AM";
+  const h12 = hour % 12 || 12;
+  return `${h12}:${m} ${ampm}`;
+}
+
+function fmtDate(d) {
+  if (!d) return "";
+  const date = new Date(d + "T00:00:00");
+  return date.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
 }
 
 export function ShowsPage() {
@@ -93,8 +102,8 @@ export function ShowsPage() {
           {grouped.map(([date, list], gIdx) => (
             <div key={date} className="space-y-3">
               <div className="flex items-center gap-2">
-                <Badge tone="info">{date}</Badge>
-                <div className="text-xs text-zinc-500">{list.length} show(s)</div>
+                <Badge tone="info">{fmtDate(date)}</Badge>
+                <div className="text-xs text-zinc-500">{list.length} show{list.length > 1 ? "s" : ""}</div>
               </div>
 
               <div className="space-y-3">
@@ -105,17 +114,19 @@ export function ShowsPage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: (gIdx * 0.06) + (idx * 0.03), duration: 0.2 }}
                   >
-                    <Card className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <Card className="group flex cursor-pointer flex-col gap-4 transition hover:border-indigo-400/20 sm:flex-row sm:items-center sm:justify-between">
                       <div className="space-y-2">
                         <div className="flex flex-wrap items-center gap-2">
-                          <Badge tone="neutral">{fmtTime(sh.start_time)}</Badge>
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-400/20 bg-indigo-500/10 px-3 py-1 text-sm font-semibold text-indigo-200">
+                            🕐 {fmtTime(sh.start_time)}
+                          </span>
                           <Badge>{sh.screen_name}</Badge>
-                          <Badge tone="info">{sh.theatre_city}</Badge>
                         </div>
-                        <div className="text-sm text-zinc-200">
+                        <div className="text-sm font-medium text-zinc-200">
                           {sh.theatre_name}
-                          <span className="text-zinc-500"> · </span>
-                          <span className="text-zinc-400">{sh.theatre_location}</span>
+                        </div>
+                        <div className="text-xs text-zinc-500">
+                          📍 {sh.theatre_location}, {sh.theatre_city}
                         </div>
                       </div>
 
@@ -126,7 +137,7 @@ export function ShowsPage() {
                         }}
                         className="w-full sm:w-auto"
                       >
-                        Select Seats
+                        Select Seats →
                       </Button>
                     </Card>
                   </motion.div>
