@@ -1,31 +1,26 @@
-# Movie Booking Backend (Express + MySQL)
+# CineVerse API
 
-## Setup
-
-1. Create a MySQL database named `movie_booking` and run the SQL in:
-   - `../schema.sql`
-   - `../data.sql` (optional sample data)
-2. Install deps:
+Express 5 · MySQL (mysql2) · JWT auth · optional Claude-powered chatbot.
 
 ```bash
-cd backend
+cp .env.example .env     # fill in DB credentials + JWT_SECRET
 npm install
+npm run dev              # http://localhost:3000
+npm test                 # needs the API running + a seeded DB (see root README)
 ```
 
-3. Start the API:
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/health`, `/config` | liveness, pricing / promo / feature flags |
+| GET | `/movies`, `/movies/:id` | with rating, synopsis, upcoming show count |
+| GET | `/shows?movie_id=&date=`, `/shows/:id` | upcoming shows only, with seats left |
+| GET | `/seats/:show_id` | per-seat status and server-side price |
+| POST | `/auth/register`, `/auth/login`; GET `/auth/me` | bcrypt + JWT (7 days) |
+| POST | `/book` | holds seats for 6 minutes (transactional, row-locked) |
+| POST | `/quote` | price preview with optional promo code |
+| POST | `/payment` | simulated gateway; amount is computed on the server |
+| GET | `/bookings`, `/bookings/:id` | my tickets |
+| DELETE | `/bookings/:id` | release a pending hold |
+| POST | `/chat` | Cinebot (rate limited) |
 
-```bash
-cd backend
-# optional env vars:
-# DB_HOST=127.0.0.1 DB_PORT=3306 DB_USER=root DB_PASSWORD= DB_NAME=movie_booking PORT=3000
-npm start
-```
-
-## Endpoints
-
-- `GET /movies`
-- `GET /shows`
-- `GET /seats/:show_id` (available seats only)
-- `POST /book` body: `{ "user_id": 1, "show_id": 1 }`
-- `POST /payment` body: `{ "booking_id": 1, "amount": 560, "method": "UPI" }`
-
+Background jobs (`lib/scheduler.js`): keeps the next 7 days of showtimes generated and releases expired seat holds every minute.

@@ -21,6 +21,7 @@ CREATE TABLE `USER` (
   email VARCHAR(255) NOT NULL,
   phone VARCHAR(20),
   password VARCHAR(255),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (user_id),
   UNIQUE KEY uq_user_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -33,6 +34,10 @@ CREATE TABLE MOVIE (
   duration SMALLINT UNSIGNED, -- minutes
   poster_url VARCHAR(255),
   cast_names VARCHAR(500),
+  rating DECIMAL(3,1),                 -- audience score out of 10
+  certificate VARCHAR(6),              -- U / UA / A
+  release_year SMALLINT UNSIGNED,
+  synopsis TEXT,
   PRIMARY KEY (movie_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -80,6 +85,7 @@ CREATE TABLE SHOWS (
   start_time TIME NOT NULL,
   PRIMARY KEY (show_id),
   KEY idx_shows_movie_id (movie_id),
+  KEY idx_shows_date_time (show_date, start_time),
   KEY idx_shows_screen_id (screen_id),
   CONSTRAINT fk_shows_movie
     FOREIGN KEY (movie_id)
@@ -116,7 +122,13 @@ CREATE TABLE BOOKING (
   show_id INT UNSIGNED NOT NULL,
   booking_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   status ENUM('Confirmed','Pending','Cancelled') NOT NULL DEFAULT 'Pending',
+  booking_code VARCHAR(16) NULL,                 -- shown on the ticket / encoded in the QR
+  promo_code VARCHAR(30) NULL,
+  discount DECIMAL(10,2) NOT NULL DEFAULT 0,
+  convenience_fee DECIMAL(10,2) NOT NULL DEFAULT 0,
+  hold_expires_at DATETIME NULL,                 -- seats are held until this moment (Pending only)
   PRIMARY KEY (booking_id),
+  UNIQUE KEY uq_booking_code (booking_code),
   KEY idx_booking_user_id (user_id),
   KEY idx_booking_show_id (show_id),
   CONSTRAINT fk_booking_user
@@ -154,6 +166,7 @@ CREATE TABLE PAYMENT (
   method ENUM('Card','UPI','NetBanking','Wallet','Cash') NOT NULL,
   status ENUM('Successful','Failed') NOT NULL,
   payment_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  reference VARCHAR(40) NULL,                    -- gateway transaction reference
   PRIMARY KEY (payment_id),
   UNIQUE KEY uq_payment_booking_id (booking_id),
   KEY idx_payment_booking_id (booking_id),

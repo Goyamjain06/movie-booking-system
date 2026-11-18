@@ -1,11 +1,15 @@
+# Render blueprint for the API. (The React app deploys to Vercel/Netlify - see README.)
 services:
   - type: web
-    name: district-backend
+    name: cineverse-api
     runtime: node
     rootDir: backend
     buildCommand: npm install
     startCommand: node index.js
+    healthCheckPath: /health
     envVars:
+      - key: NODE_ENV
+        value: production
       - key: DB_HOST
         sync: false
       - key: DB_PORT
@@ -16,7 +20,11 @@ services:
         sync: false
       - key: DB_NAME
         value: movie_booking
+      - key: DB_SSL
+        value: "true"
       - key: FRONTEND_URL
         sync: false
-      - key: PORT
-        value: 3000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ANTHROPIC_API_KEY
+        sync: false

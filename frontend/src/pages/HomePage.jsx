@@ -1,225 +1,168 @@
-import { useEffect, useMemo, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { api } from "../api";
-import { Card } from "../ui/Card";
-import { Badge } from "../ui/Badge";
-import { useBooking } from "../state/booking";
+import { Hero } from "../components/Hero";
+import { MovieCard } from "../components/MovieCard";
+import { CountUp } from "../components/bits";
+import { ErrorBox, SectionTitle, Skeleton } from "../components/ui";
+import { useToast } from "../state/toast";
 
-// Ratings seeded per movie title for display
-const RATINGS = {
-  "Dune: Part Two": 8.5,
-  "Oppenheimer": 8.9,
-  "3 Idiots": 8.4,
-  "Gully Boy": 7.9,
-  "Spider-Man: Into the Spider-Verse": 8.4,
-  "Inception": 8.8,
-  "Interstellar": 8.7,
-  "The Dark Knight": 9.0,
-  "Zindagi Na Milegi Dobara": 8.2,
-  "Drishyam": 8.1,
-  "KGF: Chapter 2": 7.8,
-  "Barbie": 7.0,
-};
+const SORTS = [
+  { id: "rating", label: "Top rated" },
+  { id: "shows", label: "Most shows" },
+  { id: "az", label: "A – Z" },
+  { id: "short", label: "Shortest first" },
+];
 
-function StarRating({ rating }) {
-  if (!rating) return null;
+function Offers({ promos }) {
+  const toast = useToast();
+  if (!promos?.length) return null;
+  const copy = (code) => {
+    navigator.clipboard?.writeText(code).then(() => toast.success(`${code} copied. Apply it at checkout`)).catch(() => toast.info(`Use code ${code} at checkout`));
+  };
   return (
-    <span className="inline-flex items-center gap-1 text-xs text-amber-400 font-semibold">
-      ★ {rating.toFixed(1)}
-    </span>
+    <section>
+      <SectionTitle eyebrow="Save more" title="Offers for you" />
+      <div className="no-scrollbar -mx-4 flex gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
+        {promos.map((p, i) => (
+          <motion.button key={p.code} onClick={() => copy(p.code)} initial={{ opacity: 0, x: 30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08 }} whileHover={{ y: -4 }} className="focus-ring group relative min-w-[16rem] flex-1 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.07] to-white/[0.02] p-5 text-left">
+            <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-gradient-to-br from-brand-rose/40 to-brand-violet/40 blur-2xl transition group-hover:scale-125" />
+            <div className="relative">
+              <div className="font-display text-lg font-bold">{p.label}</div>
+              <div className="mt-1 text-xs text-zinc-500">Min. order ₹{p.min}</div>
+              <div className="mt-4 inline-flex items-center gap-2 rounded-lg border border-dashed border-white/25 px-3 py-1.5 font-mono text-sm font-bold tracking-widest">{p.code}<span className="text-[10px] font-sans font-medium text-zinc-400">tap to copy</span></div>
+            </div>
+          </motion.button>
+        ))}
+      </div>
+    </section>
   );
 }
 
-export function HomePage() {
-  const [movies, setMovies] = useState([]);
-  const [loading, setLoading] = useState(true);
+export default function HomePage() {
+  const [movies, setMovies] = useState(null);
+  const [config, setConfig] = useState(null);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
-  const [activeGenre, setActiveGenre] = useState("All");
-  const navigate = useNavigate();
-  const { setMovie, reset } = useBooking();
+  const [genre, setGenre] = useState("All");
+  const [language, setLanguage] = useState("All");
+  const [sort, setSort] = useState("rating");
+  const searchRef = useRef(null);
 
+  const load = useCallback(() => {
+    setError("");
+    setMovies(null);
+    api.movies().then(setMovies).catch((e) => setError(e.message));
+    api.config().then(setConfig).catch(() => {});
+  }, []);
+  useEffect(load, [load]);
+
+  // "/" focuses search, like the apps people already know
   useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        setLoading(true);
-        setError("");
-        const data = await api.getMovies();
-        if (!alive) return;
-        setMovies(data);
-        reset();
-      } catch (e) {
-        if (!alive) return;
-        setError(e.message || "Failed to load movies");
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => { alive = false; };
-  }, [reset]);
+    const on = (e) => {
+      if (e.key === "/" && !["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName)) { e.preventDefault(); searchRef.current?.focus(); }
+    };
+    document.addEventListener("keydown", on);
+    return () => document.removeEventListener("keydown", on);
+  }, []);
 
-  const genres = useMemo(() => {
-    const set = new Set(movies.map((m) => m.genre).filter(Boolean));
-    return ["All", ...Array.from(set).sort()];
-  }, [movies]);
+  const genres = useMemo(() => ["All", ...Array.from(new Set((movies || []).map((m) => m.genre).filter(Boolean))).sort()], [movies]);
+  const languages = useMemo(() => ["All", ...Array.from(new Set((movies || []).map((m) => m.language).filter(Boolean))).sort()], [movies]);
 
-  const filtered = useMemo(() => {
+  const featured = useMemo(() => (movies || []).filter((m) => m.upcoming_shows > 0).slice(0, 5), [movies]);
+
+  const list = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return movies.filter((m) => {
-      const matchesQuery = !q || `${m.title} ${m.genre || ""} ${m.language || ""}`.toLowerCase().includes(q);
-      const matchesGenre = activeGenre === "All" || m.genre === activeGenre;
-      return matchesQuery && matchesGenre;
-    });
-  }, [movies, query, activeGenre]);
+    const out = (movies || []).filter(
+      (m) =>
+        (genre === "All" || m.genre === genre) &&
+        (language === "All" || m.language === language) &&
+        (!q || `${m.title} ${m.genre} ${m.language} ${m.cast_names || ""}`.toLowerCase().includes(q))
+    );
+    const by = {
+      rating: (a, b) => b.rating - a.rating,
+      shows: (a, b) => b.upcoming_shows - a.upcoming_shows,
+      az: (a, b) => a.title.localeCompare(b.title),
+      short: (a, b) => a.duration - b.duration,
+    }[sort];
+    return out.sort(by);
+  }, [movies, query, genre, language, sort]);
+
+  const totalShows = (movies || []).reduce((s, m) => s + m.upcoming_shows, 0);
 
   return (
-    <div className="space-y-8">
-      {/* Hero */}
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-indigo-500/10 via-white/[0.03] to-fuchsia-500/5 p-7 shadow-glow">
-        <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-indigo-500/15 blur-3xl" />
-        <div className="pointer-events-none absolute -left-24 -bottom-24 h-72 w-72 rounded-full bg-fuchsia-500/10 blur-3xl" />
+    <div className="space-y-14">
+      {error ? <ErrorBox message={error} onRetry={load} /> : !movies ? <Skeleton className="h-[34rem] rounded-[2rem]" /> : <Hero movies={featured} />}
 
-        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-indigo-400/20 bg-indigo-500/10 px-3 py-1 text-xs text-indigo-300">
-              <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 shadow-[0_0_6px_rgba(99,102,241,1)]" />
-              Delhi NCR · Live seats
+      {movies && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            { n: movies.length, s: "", l: "Movies playing" },
+            { n: totalShows, s: "+", l: "Shows this week" },
+            { n: 4, s: "", l: "Cinemas" },
+            { n: 3, s: "", l: "Seat tiers" },
+          ].map((x) => (
+            <div key={x.l} className="rounded-2xl border border-white/[0.07] bg-white/[0.03] px-5 py-4">
+              <div className="font-display text-2xl font-bold sm:text-3xl"><CountUp to={x.n} suffix={x.s} /></div>
+              <div className="text-xs text-zinc-500">{x.l}</div>
             </div>
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Now Playing
-            </h1>
-            <p className="mt-2 max-w-lg text-sm text-zinc-400">
-              Browse movies, pick your seats on an interactive map, and confirm in seconds.
-            </p>
-          </div>
-
-          <div className="w-full sm:w-[320px]">
-            <div className="relative">
-              <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500">
-                🔍
-              </span>
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search title, genre, language…"
-                className="w-full rounded-2xl border border-white/10 bg-black/40 py-3 pl-9 pr-4 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-indigo-400/40 focus:bg-black/60"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Genre filter chips */}
-      {!loading && !error && (
-        <div className="flex flex-wrap gap-2">
-          {genres.map((g) => (
-            <button
-              key={g}
-              onClick={() => setActiveGenre(g)}
-              className={`rounded-full border px-3.5 py-1.5 text-xs font-medium transition ${
-                activeGenre === g
-                  ? "border-indigo-400/40 bg-indigo-500/20 text-indigo-200"
-                  : "border-white/10 bg-white/[0.03] text-zinc-400 hover:border-white/20 hover:text-zinc-200"
-              }`}
-            >
-              {g}
-            </button>
           ))}
         </div>
       )}
 
-      {/* Movies grid */}
-      {loading ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-48 animate-pulse rounded-2xl border border-white/10 bg-white/[0.03]" />
-          ))}
-        </div>
-      ) : error ? (
-        <Card className="border-rose-500/20 bg-rose-500/10">
-          <div className="text-sm text-rose-100">⚠ {error}</div>
-          <div className="mt-1 text-xs text-rose-200/70">Make sure the backend is running.</div>
-        </Card>
-      ) : filtered.length === 0 ? (
-        <Card>
-          <div className="text-sm text-zinc-400">No movies found for "{query || activeGenre}".</div>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <AnimatePresence mode="popLayout">
-            {filtered.map((m, idx) => (
-              <motion.div
-                key={m.movie_id}
-                layout
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ delay: idx * 0.04, duration: 0.22 }}
-              >
-                <button
-                  onClick={() => {
-                    setMovie(m);
-                    navigate(`/movies/${m.movie_id}/shows`);
-                  }}
-                  className="w-full text-left"
-                >
-                  <Card className="group h-full cursor-pointer transition hover:border-indigo-400/20 hover:bg-white/[0.06]">
-                    <div className="flex items-start gap-4">
-                      {/* Poster */}
-                      <div className="relative h-28 w-20 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-white/5">
-                        {m.poster_url ? (
-                          <img
-                            src={m.poster_url}
-                            alt={m.title}
-                            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-indigo-500/30 to-fuchsia-500/20 text-2xl">
-                            🎬
-                          </div>
-                        )}
-                      </div>
+      <section id="movies" className="scroll-mt-24">
+        <SectionTitle eyebrow="Book now" title="All movies" right={movies && <span className="hidden text-sm text-zinc-500 sm:block">{list.length} of {movies.length}</span>} />
 
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="text-base font-semibold leading-snug text-white line-clamp-2">
-                            {m.title}
-                          </div>
-                          <StarRating rating={RATINGS[m.title]} />
-                        </div>
-
-                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                          {m.genre ? <Badge>{m.genre}</Badge> : null}
-                          {m.language ? <Badge tone="info">{m.language}</Badge> : null}
-                          {m.duration ? (
-                            <span className="text-[11px] text-zinc-500">{m.duration} min</span>
-                          ) : null}
-                        </div>
-
-                        {m.cast_names ? (
-                          <div className="mt-2 line-clamp-1 text-[11px] text-zinc-500">
-                            {m.cast_names}
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    <div className="mt-4 flex items-center justify-between border-t border-white/[0.06] pt-3">
-                      <span className="text-xs text-zinc-500">View showtimes</span>
-                      <span className="text-xs text-indigo-400 transition group-hover:translate-x-0.5">→</span>
-                    </div>
-                  </Card>
-                </button>
-              </motion.div>
+        {/* filter bar */}
+        <div className="sticky top-16 z-30 -mx-4 mb-6 space-y-3 border-b border-white/[0.06] bg-ink-950/85 px-4 py-3 backdrop-blur-xl sm:mx-0 sm:rounded-2xl sm:border sm:border-white/10 sm:px-4">
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="relative flex-1">
+              <svg className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+              <input ref={searchRef} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search movies, cast, genre…" className="input pl-10 pr-10" aria-label="Search movies" />
+              {query ? <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white" aria-label="Clear search">✕</button> : <kbd className="absolute right-3 top-1/2 hidden -translate-y-1/2 rounded border border-white/15 px-1.5 text-[10px] text-zinc-500 sm:block">/</kbd>}
+            </div>
+            <div className="flex gap-2">
+              <select value={language} onChange={(e) => setLanguage(e.target.value)} className="input w-auto" aria-label="Language">
+                {languages.map((l) => <option key={l} value={l} className="bg-ink-800">{l === "All" ? "All languages" : l}</option>)}
+              </select>
+              <select value={sort} onChange={(e) => setSort(e.target.value)} className="input w-auto" aria-label="Sort by">
+                {SORTS.map((s) => <option key={s.id} value={s.id} className="bg-ink-800">{s.label}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="no-scrollbar flex gap-2 overflow-x-auto" role="tablist" aria-label="Genres">
+            {genres.map((g) => (
+              <button key={g} role="tab" aria-selected={genre === g} onClick={() => setGenre(g)} className="focus-ring relative shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold">
+                {genre === g && <motion.span layoutId="genre-pill" className="absolute inset-0 rounded-full bg-gradient-to-r from-brand-rose to-brand-violet" transition={{ type: "spring", stiffness: 400, damping: 32 }} />}
+                <span className={`relative ${genre === g ? "text-white" : "text-zinc-400 hover:text-zinc-100"}`}>{g}</span>
+              </button>
             ))}
-          </AnimatePresence>
+          </div>
         </div>
-      )}
+
+        {!movies && !error ? (
+          <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">{Array.from({ length: 10 }).map((_, i) => <Skeleton key={i} className="aspect-[2/3]" />)}</div>
+        ) : movies && list.length === 0 ? (
+          <div className="rounded-3xl border border-white/10 bg-white/[0.03] py-16 text-center">
+            <div className="text-4xl">🍿</div>
+            <p className="mt-3 font-display text-lg font-semibold">No movies match that</p>
+            <p className="text-sm text-zinc-500">Try a different search or clear the filters.</p>
+            <button onClick={() => { setQuery(""); setGenre("All"); setLanguage("All"); }} className="mt-4 text-sm font-semibold text-violet-300 hover:underline">Reset filters</button>
+          </div>
+        ) : movies ? (
+          <motion.div layout className="grid grid-cols-2 gap-x-5 gap-y-8 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            <AnimatePresence mode="popLayout">
+              {list.map((m, idx) => (
+                <motion.div key={m.movie_id} layout exit={{ opacity: 0, scale: 0.9 }}>
+                  <MovieCard movie={m} index={idx} />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </motion.div>
+        ) : null}
+      </section>
+
+      <Offers promos={config?.promos} />
     </div>
   );
 }
-

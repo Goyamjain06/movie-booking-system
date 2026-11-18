@@ -2,22 +2,78 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --rose: #ff3d6e;
+  --violet: #7c5cff;
+  --amber: #ffb547;
+}
+
+html {
+  scroll-behavior: smooth;
+}
 html,
 body,
 #root {
-  height: 100%;
+  min-height: 100%;
 }
 
 body {
-  @apply bg-ink-950 text-zinc-100 antialiased;
+  @apply bg-ink-950 font-sans text-zinc-100 antialiased;
+  -webkit-tap-highlight-color: transparent;
 }
 
 ::selection {
-  background: rgba(99, 102, 241, 0.35);
+  background: rgba(124, 92, 255, 0.4);
 }
 
-.bg-grid {
-  background-image:
-    radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.08) 1px, transparent 0);
-  background-size: 22px 22px;
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+@layer components {
+  .gradient-text {
+    @apply bg-gradient-to-r from-brand-rose via-fuchsia-400 to-violet-400 bg-clip-text text-transparent;
+  }
+  .glass {
+    @apply border border-white/10 bg-white/[0.04] backdrop-blur-xl;
+  }
+  .focus-ring {
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-violet/70 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950;
+  }
+  .input {
+    @apply w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-brand-violet/60 focus:bg-black/50 focus:ring-2 focus:ring-brand-violet/20;
+  }
+  .film-grain {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='.5'/></svg>");
+    mix-blend-mode: overlay;
+    opacity: 0.18;
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+/* ticket perforation notches */
+.ticket-mask {
+  -webkit-mask: radial-gradient(circle 12px at 0 var(--notch, 62%), #0000 98%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle 12px at 100% var(--notch, 62%), #0000 98%, #000) right / 51% 100% no-repeat;
+  mask: radial-gradient(circle 12px at 0 var(--notch, 62%), #0000 98%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle 12px at 100% var(--notch, 62%), #0000 98%, #000) right / 51% 100% no-repeat;
+}
+
+@media print {
+  body {
+    background: #fff !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-ticket {
+    box-shadow: none !important;
+  }
 }
