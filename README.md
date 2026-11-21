@@ -86,6 +86,20 @@ PORT=3001 npm start         # http://localhost:3001
 cd backend && npm test      # API must be running; covers auth, hold → promo → pay, race conditions, chatbot
 ```
 
+### Concurrency test: can two people get the same seat?
+```bash
+cd backend && npm run race          # 20 users hit the same seat at once
+npm run race -- 50                  # or any number
+```
+Sample run on a local MySQL:
+```
+20 concurrent requests for seat 3008 (show 23) in 110 ms
+  201 Created : 1
+  409 Conflict: 19
+PASS: exactly one booking, no double-booking
+```
+How it holds up: the seat rows are locked with `SELECT … FOR UPDATE` inside a transaction, a `BEFORE INSERT` trigger on `TICKET` rejects an already-taken seat as a second line of defence, and a deadlock between two buyers is retried once and then reported as `409 Conflict`.
+
 ---
 
 ## 💳 Payments (simulated)

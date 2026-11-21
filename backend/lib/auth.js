@@ -1,10 +1,12 @@
 import jwt from "jsonwebtoken";
 
 const isProd = process.env.NODE_ENV === "production";
-const SECRET = process.env.JWT_SECRET || "dev-only-secret-change-me";
+// In production a missing secret would let anyone forge tokens with the public fallback,
+// so refuse to start instead of only warning.
 if (isProd && !process.env.JWT_SECRET) {
-  console.warn("[auth] JWT_SECRET is not set in production - set it to a long random string!");
+  throw new Error("[auth] JWT_SECRET must be set in production (use a long random string)");
 }
+const SECRET = process.env.JWT_SECRET || "dev-only-secret-change-me";
 
 export function signToken(user) {
   return jwt.sign({ uid: user.user_id }, SECRET, { expiresIn: "7d" });

@@ -74,7 +74,7 @@ test("full flow: hold -> promo quote -> pay -> ticket; server prices the order",
   const seats = (await j(`/seats/${show.show_id}`)).data.seats;
   assert.ok(ids.every((sid) => seats.find((s) => s.show_seat_id === sid).status === "Booked"));
   // can't pay twice
-  assert.equal((await j("/payment", { token, method: "POST", body: { booking_id: id, method: "UPI", details: { upi_id: "a@okhdfc" } } })).status, 409);
+  assert.equal((await j("/payment", { token, method: "POST", body: { booking_id: id, method: "UPI", details: { upi_id: "aarav@okhdfc" } } })).status, 409);
   // shows up in my bookings, and other users can't read it
   assert.ok((await j("/bookings", { token })).data.some((b) => b.booking_id === id));
   const other = await login("isha.sharma@example.com");
