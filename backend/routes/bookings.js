@@ -144,6 +144,12 @@ bookings.post("/payment", requireAuth, async (req, res) => {
   if (!bookingId || !method) return res.status(400).json({ error: "booking_id and method are required" });
   if (!["UPI", "Card", "Wallet"].includes(method)) return res.status(400).json({ error: "Unsupported payment method" });
 
+  // Talk to the (simulated) gateway BEFORE opening the transaction, so the booking row is never
+  // locked while we wait on the network. Malformed details fail fast and don't touch the hold.
+  const outcome = chargeSimulated(method, req.body?.details);
+  if (outcome.error) return res.status(400).json({ error: outcome.error });
+  await new Promise((r) => setTimeout(r, 900)); // feels like a real gateway round-trip
+
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -161,9 +167,6 @@ bookings.post("/payment", requireAuth, async (req, res) => {
     const totals = computeTotals(tix.map((t) => t.type), req.body?.promo_code);
     if (totals.promoError) throw httpError(400, totals.promoError);
 
-    const outcome = chargeSimulated(method, req.body?.details);
-    if (outcome.error) throw httpError(400, outcome.error);
-    await new Promise((r) => setTimeout(r, 900)); // feels like a real gateway round-trip
 
     const ok = outcome.ok;
     // Amount is always computed here from the tickets - the client's number is never trusted.
